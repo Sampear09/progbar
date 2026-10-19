@@ -1,0 +1,1480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>progbar - Track Progress Effortlessly</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Canvas Confetti CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    :root {
+      --accent: #6366f1;
+      --accent-rgb: 99, 102, 241;
+      --accent-light: rgba(99, 102, 241, 0.15);
+      --app-radius: 16px;
+      --bar-radius: 9999px;
+    }
+
+    .themed-radius {
+      border-radius: var(--app-radius) !important;
+    }
+    .themed-bar-radius {
+      border-radius: var(--bar-radius) !important;
+    }
+
+    /* Accent color dynamic bindings */
+    .accent-bg { background-color: var(--accent) !important; }
+    .accent-text { color: var(--accent) !important; }
+    .accent-border { border-color: var(--accent) !important; }
+
+    /* Custom Checkbox styled with Accent Color */
+    .progbar-checkbox {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 1.25rem;
+      height: 1.25rem;
+      border: 2px solid #94a3b8;
+      border-radius: max(3px, calc(var(--app-radius) * 0.25));
+      display: inline-grid;
+      place-content: center;
+      cursor: pointer;
+      background-color: transparent;
+      transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .dark .progbar-checkbox {
+      border-color: #475569;
+    }
+
+    .progbar-checkbox:hover {
+      border-color: var(--accent);
+      background-color: var(--accent-light);
+      transform: scale(1.08);
+    }
+
+    .progbar-checkbox:checked {
+      background-color: var(--accent) !important;
+      border-color: var(--accent) !important;
+      box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.45);
+    }
+
+    .progbar-checkbox::before {
+      content: "";
+      width: 0.65rem;
+      height: 0.65rem;
+      clip-path: polygon(14% 44%, 0 60%, 38% 100%, 100% 16%, 80% 0%, 38% 66%);
+      transform: scale(0);
+      background-color: #ffffff;
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .progbar-checkbox:checked::before {
+      transform: scale(1);
+    }
+
+    /* Sub-task check ripple and flash */
+    @keyframes taskCompleteFlash {
+      0% { background-color: var(--accent-light); transform: scale(1.01); }
+      50% { background-color: rgba(var(--accent-rgb), 0.22); transform: scale(1.02); }
+      100% { background-color: transparent; transform: scale(1); }
+    }
+
+    .task-flash-anim {
+      animation: taskCompleteFlash 0.55s ease-out forwards;
+    }
+
+    @keyframes popBounce {
+      0% { transform: scale(0.85); }
+      50% { transform: scale(1.35) rotate(-5deg); }
+      100% { transform: scale(1) rotate(0deg); }
+    }
+
+    .checkbox-pop {
+      animation: popBounce 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    /* Full Bar 100% Celebration Pulse */
+    @keyframes barGlowBurst {
+      0% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0.7); }
+      50% { box-shadow: 0 0 25px 8px rgba(var(--accent-rgb), 0.5), 0 0 45px 12px rgba(var(--accent-rgb), 0.25); }
+      100% { box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0); }
+    }
+
+    .card-complete-burst {
+      animation: barGlowBurst 1.2s ease-out 2;
+    }
+
+    /* Bar Fill Textures */
+    .bar-style-gradient {
+      background: linear-gradient(90deg, var(--accent), #a855f7, #ec4899);
+      box-shadow: 0 0 16px rgba(var(--accent-rgb), 0.45);
+    }
+    .bar-style-solid {
+      background-color: var(--accent);
+    }
+    .bar-style-striped {
+      background-color: var(--accent);
+      background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.28) 10px, rgba(255,255,255,0.28) 20px);
+      background-size: 200% 200%;
+      animation: stripeMove 6s linear infinite;
+    }
+    .bar-style-neon {
+      background: var(--accent);
+      box-shadow: 0 0 14px var(--accent), 0 0 28px rgba(var(--accent-rgb), 0.6);
+      animation: neonPulse 2s ease-in-out infinite alternate;
+    }
+    .bar-style-liquid {
+      background: linear-gradient(90deg, var(--accent), #38bdf8);
+      background-size: 200% 100%;
+      animation: liquidFlow 3s ease-in-out infinite;
+    }
+    .bar-style-metallic {
+      background: linear-gradient(90deg, var(--accent) 0%, #ffffff 50%, var(--accent) 100%);
+      background-size: 200% 100%;
+      animation: metallicShine 2.5s infinite linear;
+    }
+
+    @keyframes stripeMove {
+      0% { background-position: 0 0; }
+      100% { background-position: 50px 50px; }
+    }
+    @keyframes neonPulse {
+      0% { opacity: 0.85; filter: brightness(1); }
+      100% { opacity: 1; filter: brightness(1.3); }
+    }
+    @keyframes liquidFlow {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    @keyframes metallicShine {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* Pixelated retro bar option */
+    .pixel-track {
+      box-shadow: inset 2px 2px 0px #000, inset -2px -2px 0px #475569;
+      image-rendering: pixelated;
+    }
+
+    /* Smooth transitions */
+    .smooth-transition {
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Custom thin scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.3);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.6);
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 min-h-screen font-sans selection:bg-indigo-500 selection:text-white transition-colors duration-300">
+
+  <!-- Main View Container -->
+  <div class="max-w-5xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+    
+    <!-- Top Header -->
+    <header class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 mb-6 border-b border-slate-200 dark:border-slate-800">
+      <div class="flex items-center space-x-3.5">
+        <div class="w-10 h-10 themed-radius accent-bg flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">progbar</h1>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Precision progress tracking & milestones</p>
+        </div>
+      </div>
+
+      <!-- Action buttons & Controls -->
+      <div class="flex items-center gap-2.5 w-full sm:w-auto justify-end flex-wrap">
+        <!-- Add New Bar Button -->
+        <button id="addBarBtn" class="flex items-center space-x-2 px-4 py-2.5 accent-bg hover:opacity-95 active:scale-95 text-white font-semibold text-sm themed-radius shadow-md shadow-indigo-600/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 4v16m8-8H4"/>
+          </svg>
+          <span>New Bar</span>
+          <span id="barCounterBadge" class="ml-1 text-xs opacity-85 bg-black/25 px-2 py-0.5 rounded-full font-mono">1/15</span>
+        </button>
+
+        <!-- Filter by Tag Dropdown -->
+        <div class="relative">
+          <select id="tagFilter" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs sm:text-sm themed-radius px-3.5 py-2.5 pr-8 focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none text-slate-700 dark:text-slate-300 shadow-sm cursor-pointer font-medium">
+            <option value="ALL">All Tags</option>
+          </select>
+          <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-slate-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </div>
+        </div>
+
+        <!-- Settings Modal Trigger -->
+        <button id="openSettingsBtn" title="Settings & Customization" class="p-2.5 themed-radius bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shadow-sm">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Overall Summary Card -->
+    <div id="summaryHero" class="mb-6 p-4 sm:p-5 themed-radius bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+      <div class="flex items-center space-x-4">
+        <div class="relative w-14 h-14 flex items-center justify-center shrink-0">
+          <svg class="w-14 h-14 transform -rotate-90" viewBox="0 0 36 36">
+            <path class="text-slate-200 dark:text-slate-800" stroke-width="3.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+            <path id="overallRing" class="accent-text transition-all duration-700 ease-out" stroke-dasharray="0, 100" stroke-width="3.5" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+          </svg>
+          <span id="overallPercentageText" class="absolute text-xs font-bold text-slate-800 dark:text-slate-200">0%</span>
+        </div>
+        <div>
+          <h2 class="text-sm font-bold text-slate-800 dark:text-slate-200">Total Completion</h2>
+          <p id="overallStatusText" class="text-xs text-slate-500 dark:text-slate-400">0 of 0 tasks completed across active bars</p>
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-3 text-xs sm:text-sm divide-x divide-slate-200 dark:divide-slate-800">
+        <div class="px-2">
+          <span class="block text-slate-400 text-[10px] uppercase font-bold tracking-wider">Active Bars</span>
+          <span id="activeBarsCount" class="text-lg font-black text-slate-700 dark:text-slate-200">0</span>
+        </div>
+        <div class="pl-4">
+          <span class="block text-slate-400 text-[10px] uppercase font-bold tracking-wider">Total Time Tracked</span>
+          <span id="totalTimeTracked" class="text-lg font-mono font-bold text-slate-700 dark:text-slate-200">00:00:00</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bars Container -->
+    <div id="barsList" class="space-y-4">
+      <!-- Dynamic progress bar cards inserted here -->
+    </div>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="hidden text-center py-16 px-4 border-2 border-dashed border-slate-300 dark:border-slate-800 themed-radius">
+      <div class="mx-auto w-12 h-12 text-slate-400 mb-3">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      </div>
+      <h3 class="text-base font-semibold text-slate-700 dark:text-slate-300 mb-1">No progress bars found</h3>
+      <p class="text-xs text-slate-500 mb-4">Click below to create your first tracking bar</p>
+      <button onclick="addNewBar()" class="px-4 py-2 accent-bg text-white text-xs font-semibold themed-radius">Create Bar</button>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-3 themed-radius shadow-xl flex items-center space-x-2 text-sm font-medium">
+      <svg class="w-4 h-4 text-emerald-400 dark:text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+      <span id="toastMsg">Changes saved</span>
+    </div>
+  </div>
+
+  <!-- Settings & Customization Modal -->
+  <div id="settingsModal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 w-full max-w-xl themed-radius shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden transform transition-all">
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-800">
+        <div class="flex items-center gap-2.5">
+          <div class="w-7 h-7 themed-radius accent-bg flex items-center justify-center text-white">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          </div>
+          <h3 class="text-lg font-bold text-slate-800 dark:text-white">Design & Settings</h3>
+        </div>
+        <button id="closeSettingsBtn" class="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+        <!-- 1. Accent Color Palette -->
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2.5">Accent Color (Applies to Bars, Buttons & Sub-Task Boxes)</label>
+          <div class="flex items-center gap-2.5 flex-wrap" id="accentColorOptions">
+            <!-- Dynamic color swatches generated here -->
+          </div>
+          <div class="mt-3 flex items-center gap-2">
+            <span class="text-xs text-slate-500">Custom Hex:</span>
+            <input type="color" id="customAccentPicker" class="w-7 h-7 rounded border-0 cursor-pointer p-0 bg-transparent">
+            <input type="text" id="customAccentHex" placeholder="#6366f1" class="text-xs px-2 py-1 rounded border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-mono w-24">
+          </div>
+        </div>
+
+        <!-- 2. Edge Style & Corner Radius -->
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Corner Rounding / Edge Style</label>
+          <div class="grid grid-cols-4 gap-2" id="radiusOptions">
+            <button data-radius="sharp" class="radius-choice p-2.5 border text-center text-xs font-semibold hover:border-indigo-500 rounded-none">Sharp (Boxy)</button>
+            <button data-radius="soft" class="radius-choice p-2.5 border text-center text-xs font-semibold hover:border-indigo-500 rounded-lg">Soft (8px)</button>
+            <button data-radius="smooth" class="radius-choice p-2.5 border text-center text-xs font-semibold hover:border-indigo-500 rounded-2xl">Smooth (16px)</button>
+            <button data-radius="pill" class="radius-choice p-2.5 border text-center text-xs font-semibold hover:border-indigo-500 rounded-full">Pill (Capsule)</button>
+          </div>
+        </div>
+
+        <!-- 3. Bar Visual Fill Style -->
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Bar Texture / Fill Style</label>
+          <div class="grid grid-cols-3 gap-2.5" id="barStyleOptions">
+            <button data-style="gradient" class="style-choice p-2.5 themed-radius border text-left flex flex-col gap-1.5 hover:border-indigo-500">
+              <div class="h-2 rounded-full w-full bar-style-gradient"></div>
+              <span class="text-[11px] font-semibold">Gradient Glow</span>
+            </button>
+            <button data-style="solid" class="style-choice p-2.5 themed-radius border text-left flex flex-col gap-1.5 hover:border-indigo-500">
+              <div class="h-2 rounded-full w-full bar-style-solid"></div>
+              <span class="text-[11px] font-semibold">Solid Accent</span>
+            </button>
+            <button data-style="striped" class="style-choice p-2.5 themed-radius border text-left flex flex-col gap-1.5 hover:border-indigo-500">
+              <div class="h-2 rounded-full w-full bar-style-striped"></div>
+              <span class="text-[11px] font-semibold">Candy Stripe</span>
+            </button>
+            <button data-style="neon" class="style-choice p-2.5 themed-radius border text-left flex flex-col gap-1.5 hover:border-indigo-500">
+              <div class="h-2 rounded-full w-full bar-style-neon"></div>
+              <span class="text-[11px] font-semibold">Neon Pulse</span>
+            </button>
+            <button data-style="liquid" class="style-choice p-2.5 themed-radius border text-left flex flex-col gap-1.5 hover:border-indigo-500">
+              <div class="h-2 rounded-full w-full bar-style-liquid"></div>
+              <span class="text-[11px] font-semibold">Liquid Wave</span>
+            </button>
+            <button data-style="metallic" class="style-choice p-2.5 themed-radius border text-left flex flex-col gap-1.5 hover:border-indigo-500">
+              <div class="h-2 rounded-full w-full bar-style-metallic"></div>
+              <span class="text-[11px] font-semibold">Metallic Sheen</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 4. Bar Type Layout -->
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Bar Display Format</label>
+          <div class="grid grid-cols-4 gap-2" id="barLayoutOptions">
+            <button data-layout="standard" class="layout-choice p-2 themed-radius border text-center text-xs font-medium">Standard</button>
+            <button data-layout="segmented" class="layout-choice p-2 themed-radius border text-center text-xs font-medium">Segmented</button>
+            <button data-layout="slim" class="layout-choice p-2 themed-radius border text-center text-xs font-medium">Slim Line</button>
+            <button data-layout="pixel" class="layout-choice p-2 themed-radius border text-center text-xs font-medium">Pixel Arcade</button>
+          </div>
+        </div>
+
+        <!-- 5. Appearance Theme -->
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Display Mode</label>
+          <div class="grid grid-cols-2 gap-3">
+            <button id="lightModeBtn" class="flex items-center justify-center space-x-2 py-2.5 px-3 themed-radius border border-slate-200 dark:border-slate-800 text-sm font-medium hover:border-indigo-500 transition-colors">
+              <svg class="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/></svg>
+              <span>Light Mode</span>
+            </button>
+            <button id="darkModeBtn" class="flex items-center justify-center space-x-2 py-2.5 px-3 themed-radius border border-slate-200 dark:border-slate-800 text-sm font-medium hover:border-indigo-500 transition-colors">
+              <svg class="w-4 h-4 text-indigo-400" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/></svg>
+              <span>Dark Mode</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 6. Celebrations & Audio Settings -->
+        <div class="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-400">Audio & Completion Animation</label>
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-slate-700 dark:text-slate-300">Confetti Celebration</p>
+              <p class="text-xs text-slate-500">Fires multi-angle confetti on 100% completion</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="confettiToggle" class="sr-only peer" checked>
+              <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 accent-bg"></div>
+            </label>
+          </div>
+
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm font-medium text-slate-700 dark:text-slate-300">Interactive Chimes & Sounds</p>
+              <p class="text-xs text-slate-500">Play pop tones on subtasks and victory fanfare on 100%</p>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="soundToggle" class="sr-only peer" checked>
+              <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-slate-600 accent-bg"></div>
+            </label>
+          </div>
+        </div>
+
+        <!-- 7. Data Backup & Reset -->
+        <div class="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-400">Data & Backup</label>
+          <div class="flex flex-wrap gap-2">
+            <button id="exportDataBtn" class="flex-1 py-2 px-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 themed-radius text-xs font-semibold text-slate-700 dark:text-slate-300 transition-colors flex items-center justify-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              Export JSON
+            </button>
+            <label class="flex-1 py-2 px-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 themed-radius text-xs font-semibold text-slate-700 dark:text-slate-300 transition-colors flex items-center justify-center gap-1.5 cursor-pointer text-center">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+              Import JSON
+              <input type="file" id="importJsonInput" accept=".json" class="hidden">
+            </label>
+            <button id="resetDataBtn" class="w-full py-2 px-3 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 themed-radius text-xs font-semibold transition-colors flex items-center justify-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              Reset All Progress
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tag Picker Popover Modal -->
+  <div id="tagPickerModal" class="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs hidden items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 p-5 themed-radius max-w-sm w-full shadow-2xl border border-slate-200 dark:border-slate-800">
+      <h4 class="text-sm font-bold mb-3 text-slate-800 dark:text-white">Assign Category Tag</h4>
+      <div class="space-y-3">
+        <div>
+          <label class="text-[11px] font-semibold text-slate-400 uppercase">Tag Name</label>
+          <input type="text" id="customTagName" placeholder="e.g. Work, Study, Health" class="w-full text-sm mt-1 px-3 py-2 themed-radius border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        </div>
+        <div>
+          <label class="text-[11px] font-semibold text-slate-400 uppercase">Tag Color</label>
+          <div class="flex items-center gap-2 mt-1.5 flex-wrap" id="tagPalette">
+            <!-- Palette colors inserted by JS -->
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+          <button id="cancelTagBtn" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">Cancel</button>
+          <button id="saveTagBtn" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold accent-bg text-white">Apply Tag</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Constants & Limits
+    const MAX_BARS = 15;
+    const MAX_TASKS_PER_BAR = 10;
+    const STORAGE_KEY = 'progbar_state_v1';
+
+    const ACCENT_PRESETS = [
+      { name: 'Indigo', hex: '#6366f1' },
+      { name: 'Emerald', hex: '#10b981' },
+      { name: 'Amber', hex: '#f59e0b' },
+      { name: 'Rose', hex: '#f43f5e' },
+      { name: 'Cyan', hex: '#06b6d4' },
+      { name: 'Violet', hex: '#8b5cf6' },
+      { name: 'Orange', hex: '#f97316' },
+      { name: 'Slate', hex: '#475569' }
+    ];
+
+    const COLOR_PALETTE = [
+      { name: 'Emerald', bg: '#10b981' },
+      { name: 'Indigo', bg: '#6366f1' },
+      { name: 'Amber', bg: '#f59e0b' },
+      { name: 'Rose', bg: '#f43f5e' },
+      { name: 'Cyan', bg: '#06b6d4' },
+      { name: 'Purple', bg: '#a855f7' },
+      { name: 'Slate', bg: '#64748b' }
+    ];
+
+    // Synthesized Web Audio Sound Engine
+    let audioCtx = null;
+    function playSound(type) {
+      if (!appData.settings.soundEnabled) return;
+      try {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+
+        const now = audioCtx.currentTime;
+
+        if (type === 'tick') {
+          // Crisper, bouncy pop chime
+          const osc1 = audioCtx.createOscillator();
+          const gain1 = audioCtx.createGain();
+          osc1.connect(gain1);
+          gain1.connect(audioCtx.destination);
+
+          osc1.type = 'sine';
+          osc1.frequency.setValueAtTime(520, now);
+          osc1.frequency.exponentialRampToValueAtTime(1040, now + 0.08);
+
+          gain1.gain.setValueAtTime(0.18, now);
+          gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+          osc1.start(now);
+          osc1.stop(now + 0.12);
+
+        } else if (type === 'untick') {
+          // Subtle soft deflation tone
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(440, now);
+          osc.frequency.exponentialRampToValueAtTime(220, now + 0.08);
+
+          gain.gain.setValueAtTime(0.1, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+          osc.start(now);
+          osc.stop(now + 0.08);
+
+        } else if (type === 'complete') {
+          // Polyphonic Major Arpeggio Fanfare (C5 -> E5 -> G5 -> C6)
+          const notes = [523.25, 659.25, 783.99, 1046.50];
+          notes.forEach((freq, idx) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            const noteStart = now + (idx * 0.09);
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, noteStart);
+
+            gain.gain.setValueAtTime(0.15, noteStart);
+            gain.gain.exponentialRampToValueAtTime(0.0001, noteStart + 0.55);
+
+            osc.start(noteStart);
+            osc.stop(noteStart + 0.6);
+          });
+        }
+      } catch (e) {
+        console.error('Audio engine error:', e);
+      }
+    }
+
+    // Default State
+    const defaultData = {
+      settings: {
+        darkMode: true,
+        barStyle: 'gradient',      // gradient, solid, striped, neon, liquid, metallic
+        barLayout: 'standard',     // standard, segmented, slim, pixel
+        radiusMode: 'smooth',      // sharp, soft, smooth, pill
+        accentColor: '#6366f1',
+        confettiEnabled: true,
+        soundEnabled: true
+      },
+      bars: [
+        {
+          id: 'bar_' + Date.now(),
+          title: 'Daily Milestones & Goals',
+          tag: { name: 'Focus', color: '#6366f1' },
+          notes: 'Keep momentum going! Completing individual tasks automatically recalculates progress.',
+          isNotesOpen: false,
+          isTasksOpen: true,
+          timerSeconds: 300,
+          timerRunning: false,
+          manualProgress: 0,
+          tasks: [
+            { id: 'task_1', title: 'Review morning objectives', completed: true },
+            { id: 'task_2', title: 'Finish high-priority action items', completed: true },
+            { id: 'task_3', title: 'Organize files and document notes', completed: false },
+            { id: 'task_4', title: 'Review end-of-day summary', completed: false }
+          ]
+        }
+      ]
+    };
+
+    let appData = { ...defaultData };
+    let activeFilterTag = 'ALL';
+    let currentTagBarId = null;
+    let selectedColorIndex = 0;
+    let timerInterval = null;
+
+    // Load & Save State
+    function loadState() {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        try {
+          appData = JSON.parse(stored);
+          appData.bars.forEach(b => { b.timerRunning = false; });
+          if (!appData.settings.accentColor) appData.settings.accentColor = '#6366f1';
+          if (!appData.settings.radiusMode) appData.settings.radiusMode = 'smooth';
+          if (!appData.settings.barLayout) appData.settings.barLayout = 'standard';
+        } catch (e) {
+          console.error("State parse error:", e);
+          appData = defaultData;
+        }
+      } else {
+        appData = defaultData;
+      }
+    }
+
+    function saveState(notify = false) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+      if (notify) triggerToast("Saved automatically");
+    }
+
+    function triggerToast(text) {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toastMsg');
+      toastMsg.textContent = text;
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+      setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+        toast.classList.remove('translate-y-0', 'opacity-100');
+      }, 1800);
+    }
+
+    // Progress Calculator
+    function getBarProgress(bar) {
+      if (bar.tasks && bar.tasks.length > 0) {
+        const completed = bar.tasks.filter(t => t.completed).length;
+        return Math.round((completed / bar.tasks.length) * 100);
+      }
+      return bar.manualProgress || 0;
+    }
+
+    // Time formatting
+    function formatTime(totalSecs) {
+      const h = Math.floor(totalSecs / 3600);
+      const m = Math.floor((totalSecs % 3600) / 60);
+      const s = totalSecs % 60;
+      return [
+        h.toString().padStart(2, '0'),
+        m.toString().padStart(2, '0'),
+        s.toString().padStart(2, '0')
+      ].join(':');
+    }
+
+    // Timer Interval
+    function startTimerLoop() {
+      if (timerInterval) clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        let changed = false;
+        appData.bars.forEach(b => {
+          if (b.timerRunning) {
+            b.timerSeconds = (b.timerSeconds || 0) + 1;
+            changed = true;
+            const timerEl = document.getElementById(`timer-display-${b.id}`);
+            if (timerEl) {
+              timerEl.textContent = formatTime(b.timerSeconds);
+            }
+          }
+        });
+        if (changed) {
+          updateSummaryMetrics();
+          if (Date.now() % 5000 < 1000) {
+            saveState(false);
+          }
+        }
+      }, 1000);
+    }
+
+    // Helper: Hex to RGB
+    function hexToRgb(hex) {
+      const sanitized = hex.replace('#', '');
+      const bigint = parseInt(sanitized.length === 3 ? sanitized.split('').map(c => c + c).join('') : sanitized, 16);
+      const r = (bigint >> 16) & 255;
+      const g = (bigint >> 8) & 255;
+      const b = bigint & 255;
+      return `${r}, ${g}, ${b}`;
+    }
+
+    // Apply Settings Styles & Custom CSS Variables
+    function applyGlobalStyles() {
+      const root = document.documentElement;
+      const hex = appData.settings.accentColor || '#6366f1';
+      root.style.setProperty('--accent', hex);
+      root.style.setProperty('--accent-rgb', hexToRgb(hex));
+      root.style.setProperty('--accent-light', `rgba(${hexToRgb(hex)}, 0.15)`);
+
+      // Corner radius settings
+      let appR = '16px';
+      let barR = '9999px';
+      if (appData.settings.radiusMode === 'sharp') {
+        appR = '0px';
+        barR = '0px';
+      } else if (appData.settings.radiusMode === 'soft') {
+        appR = '8px';
+        barR = '6px';
+      } else if (appData.settings.radiusMode === 'smooth') {
+        appR = '16px';
+        barR = '9999px';
+      } else if (appData.settings.radiusMode === 'pill') {
+        appR = '24px';
+        barR = '9999px';
+      }
+      root.style.setProperty('--app-radius', appR);
+      root.style.setProperty('--bar-radius', barR);
+
+      // Dark mode class
+      if (appData.settings.darkMode) {
+        root.classList.add('dark');
+        document.getElementById('darkModeBtn').classList.add('ring-2', 'ring-indigo-500', 'bg-indigo-50', 'dark:bg-indigo-950/40');
+        document.getElementById('lightModeBtn').classList.remove('ring-2', 'ring-indigo-500', 'bg-indigo-50', 'dark:bg-indigo-950/40');
+      } else {
+        root.classList.remove('dark');
+        document.getElementById('lightModeBtn').classList.add('ring-2', 'ring-indigo-500', 'bg-indigo-50', 'dark:bg-indigo-950/40');
+        document.getElementById('darkModeBtn').classList.remove('ring-2', 'ring-indigo-500', 'bg-indigo-50', 'dark:bg-indigo-950/40');
+      }
+
+      // Radius choice button state
+      document.querySelectorAll('#radiusOptions .radius-choice').forEach(btn => {
+        if (btn.dataset.radius === appData.settings.radiusMode) {
+          btn.classList.add('ring-2', 'ring-indigo-500', 'border-indigo-500');
+        } else {
+          btn.classList.remove('ring-2', 'ring-indigo-500', 'border-indigo-500');
+        }
+      });
+
+      // Style choice button state
+      document.querySelectorAll('#barStyleOptions .style-choice').forEach(btn => {
+        if (btn.dataset.style === appData.settings.barStyle) {
+          btn.classList.add('ring-2', 'ring-indigo-500', 'border-indigo-500');
+        } else {
+          btn.classList.remove('ring-2', 'ring-indigo-500', 'border-indigo-500');
+        }
+      });
+
+      // Layout choice button state
+      document.querySelectorAll('#barLayoutOptions .layout-choice').forEach(btn => {
+        if (btn.dataset.layout === appData.settings.barLayout) {
+          btn.classList.add('ring-2', 'ring-indigo-500', 'border-indigo-500');
+        } else {
+          btn.classList.remove('ring-2', 'ring-indigo-500', 'border-indigo-500');
+        }
+      });
+
+      document.getElementById('confettiToggle').checked = appData.settings.confettiEnabled;
+      document.getElementById('soundToggle').checked = appData.settings.soundEnabled;
+
+      renderAccentSwatches();
+    }
+
+    function renderAccentSwatches() {
+      const container = document.getElementById('accentColorOptions');
+      container.innerHTML = '';
+      ACCENT_PRESETS.forEach(color => {
+        const swatch = document.createElement('button');
+        swatch.className = `w-7 h-7 rounded-full transition-transform border-2 ${appData.settings.accentColor === color.hex ? 'scale-110 border-white dark:border-white ring-2 ring-indigo-500' : 'border-transparent'}`;
+        swatch.style.backgroundColor = color.hex;
+        swatch.title = color.name;
+        swatch.onclick = () => {
+          appData.settings.accentColor = color.hex;
+          applyGlobalStyles();
+          saveState();
+          renderBars();
+        };
+        container.appendChild(swatch);
+      });
+      document.getElementById('customAccentHex').value = appData.settings.accentColor;
+      document.getElementById('customAccentPicker').value = appData.settings.accentColor;
+    }
+
+    // Update Summary Metrics
+    function updateSummaryMetrics() {
+      const visibleBars = appData.bars;
+      const count = visibleBars.length;
+      document.getElementById('activeBarsCount').textContent = count;
+      document.getElementById('barCounterBadge').textContent = `${count}/${MAX_BARS}`;
+
+      const addBtn = document.getElementById('addBarBtn');
+      if (count >= MAX_BARS) {
+        addBtn.disabled = true;
+        addBtn.classList.add('opacity-40', 'cursor-not-allowed');
+      } else {
+        addBtn.disabled = false;
+        addBtn.classList.remove('opacity-40', 'cursor-not-allowed');
+      }
+
+      let totalTasks = 0;
+      let completedTasks = 0;
+      let totalSeconds = 0;
+
+      visibleBars.forEach(b => {
+        totalSeconds += (b.timerSeconds || 0);
+        if (b.tasks && b.tasks.length > 0) {
+          totalTasks += b.tasks.length;
+          completedTasks += b.tasks.filter(t => t.completed).length;
+        }
+      });
+
+      document.getElementById('totalTimeTracked').textContent = formatTime(totalSeconds);
+      const overallPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+      document.getElementById('overallPercentageText').textContent = `${overallPercent}%`;
+      document.getElementById('overallStatusText').textContent = `${completedTasks} of ${totalTasks} sub-tasks complete across all bars`;
+
+      const ring = document.getElementById('overallRing');
+      ring.setAttribute('stroke-dasharray', `${overallPercent}, 100`);
+
+      populateTagFilterDropdown();
+    }
+
+    function populateTagFilterDropdown() {
+      const select = document.getElementById('tagFilter');
+      const currentVal = select.value || 'ALL';
+      const tags = new Set();
+      appData.bars.forEach(b => {
+        if (b.tag && b.tag.name) tags.add(b.tag.name);
+      });
+
+      select.innerHTML = '<option value="ALL">All Tags</option>';
+      tags.forEach(tagName => {
+        const opt = document.createElement('option');
+        opt.value = tagName;
+        opt.textContent = tagName;
+        if (tagName === currentVal) opt.selected = true;
+        select.appendChild(opt);
+      });
+    }
+
+    // Render Bar Visual Track based on selected Layout
+    function renderBarTrack(bar, percent) {
+      const styleClass = `bar-style-${appData.settings.barStyle || 'gradient'}`;
+      const layout = appData.settings.barLayout || 'standard';
+
+      if (layout === 'segmented' && bar.tasks.length > 0) {
+        return `
+          <div class="flex items-center gap-1.5 w-full h-3.5">
+            ${bar.tasks.map((task, idx) => `
+              <div class="flex-1 h-full themed-bar-radius border border-slate-200/60 dark:border-slate-700/60 overflow-hidden bg-slate-100 dark:bg-slate-800 transition-all duration-300">
+                <div class="h-full w-full ${task.completed ? styleClass : 'opacity-0'} transition-opacity duration-300"></div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+
+      if (layout === 'slim') {
+        return `
+          <div class="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+            <div class="h-full transition-all duration-500 ease-out ${styleClass}" style="width: ${percent}%;"></div>
+          </div>
+        `;
+      }
+
+      if (layout === 'pixel') {
+        return `
+          <div class="h-4 w-full bg-slate-900 pixel-track p-0.5 border border-slate-700">
+            <div class="h-full ${styleClass} transition-all duration-300" style="width: ${percent}%;"></div>
+          </div>
+        `;
+      }
+
+      // Default Standard Bar
+      return `
+        <div class="h-3.5 w-full bg-slate-100 dark:bg-slate-800 themed-bar-radius overflow-hidden p-0.5 border border-slate-200/50 dark:border-slate-700/50">
+          <div class="h-full themed-bar-radius transition-all duration-500 ease-out ${styleClass}" style="width: ${percent}%;"></div>
+        </div>
+      `;
+    }
+
+    // Render All Bars
+    function renderBars() {
+      const container = document.getElementById('barsList');
+      const emptyState = document.getElementById('emptyState');
+      container.innerHTML = '';
+
+      const filteredBars = appData.bars.filter(b => {
+        if (activeFilterTag === 'ALL') return true;
+        return b.tag && b.tag.name === activeFilterTag;
+      });
+
+      if (filteredBars.length === 0) {
+        emptyState.classList.remove('hidden');
+      } else {
+        emptyState.classList.add('hidden');
+      }
+
+      filteredBars.forEach(bar => {
+        const percent = getBarProgress(bar);
+        const isComplete = percent === 100;
+
+        const barCard = document.createElement('div');
+        barCard.className = `themed-radius border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm transition-all duration-300 hover:shadow-md ${isComplete ? 'ring-1 ring-emerald-500/30' : ''}`;
+        barCard.id = `card-${bar.id}`;
+
+        barCard.innerHTML = `
+          <div class="p-5">
+            <!-- Header Row: Title, Tag, Timer & Controls -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+              <div class="flex items-center space-x-2.5 flex-1 min-w-0">
+                <!-- Tag pill or Add Tag button -->
+                <button onclick="openTagPicker('${bar.id}')" title="Assign Tag" class="shrink-0 text-xs px-2.5 py-1 themed-bar-radius font-semibold transition-transform active:scale-95 flex items-center space-x-1" style="background-color: ${bar.tag ? bar.tag.color + '20' : '#e2e8f0'}; color: ${bar.tag ? bar.tag.color : '#64748b'}; border: 1px solid ${bar.tag ? bar.tag.color + '45' : '#cbd5e1'}">
+                  <span class="w-1.5 h-1.5 rounded-full" style="background-color: ${bar.tag ? bar.tag.color : '#94a3b8'}"></span>
+                  <span>${bar.tag ? escapeHtml(bar.tag.name) : '+ Tag'}</span>
+                </button>
+
+                <!-- Editable Title -->
+                <input 
+                  type="text" 
+                  value="${escapeHtml(bar.title)}" 
+                  onchange="updateBarTitle('${bar.id}', this.value)"
+                  class="font-bold text-slate-800 dark:text-slate-100 bg-transparent hover:bg-slate-100/60 dark:hover:bg-slate-800/60 focus:bg-slate-100 dark:focus:bg-slate-800 px-2 py-1 themed-radius border border-transparent focus:border-indigo-400 focus:outline-none w-full text-base transition-colors"
+                  placeholder="Task Name..."
+                />
+              </div>
+
+              <!-- Top Right Controls: Timer & Delete -->
+              <div class="flex items-center space-x-2 shrink-0 self-end sm:self-auto">
+                <!-- Stopwatch Pill -->
+                <div class="flex items-center space-x-1.5 px-2.5 py-1 bg-slate-100 dark:bg-slate-800/80 themed-radius border border-slate-200/80 dark:border-slate-700/60 text-xs font-mono">
+                  <span id="timer-display-${bar.id}" class="text-slate-700 dark:text-slate-300 font-semibold">${formatTime(bar.timerSeconds || 0)}</span>
+                  <button onclick="toggleTimer('${bar.id}')" title="${bar.timerRunning ? 'Pause' : 'Start'}" class="p-1 rounded-lg text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400">
+                    ${bar.timerRunning 
+                      ? '<svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>'
+                      : '<svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/></svg>'
+                    }
+                  </button>
+                  <button onclick="resetTimer('${bar.id}')" title="Reset Timer" class="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                  </button>
+                </div>
+
+                <!-- Notes Drawer Toggle -->
+                <button onclick="toggleNotes('${bar.id}')" title="Toggle Scratchpad Notes" class="p-1.5 themed-radius border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white ${bar.isNotesOpen ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 border-indigo-300 dark:border-indigo-700' : 'bg-white dark:bg-slate-900'}">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                </button>
+
+                <!-- Delete Bar Button -->
+                <button onclick="deleteBar('${bar.id}')" title="Delete Progress Bar" class="p-1.5 themed-radius border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-red-500 hover:border-red-300 dark:hover:border-red-900 transition-colors">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Progress Bar Visualization Component -->
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-medium text-slate-500 dark:text-slate-400">
+                  ${bar.tasks.length > 0 
+                    ? `${bar.tasks.filter(t => t.completed).length} of ${bar.tasks.length} sub-tasks complete` 
+                    : 'No sub-tasks attached'}
+                </span>
+                <span class="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
+                  ${percent}%
+                  ${isComplete ? '<span class="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-bold animate-bounce">Complete!</span>' : ''}
+                </span>
+              </div>
+              
+              <!-- Render Track (Standard, Segmented, Slim, or Pixel) -->
+              ${renderBarTrack(bar, percent)}
+            </div>
+
+            <!-- Bottom Accordion & Task Controls -->
+            <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+              <button onclick="toggleTasksAccordion('${bar.id}')" class="flex items-center space-x-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
+                <svg class="w-4 h-4 transform transition-transform duration-200 ${bar.isTasksOpen ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                </svg>
+                <span>Sub-tasks (${bar.tasks.length}/${MAX_TASKS_PER_BAR})</span>
+              </button>
+
+              <!-- Quick Add Subtask Button -->
+              <button 
+                onclick="addNewTask('${bar.id}')" 
+                ${bar.tasks.length >= MAX_TASKS_PER_BAR ? 'disabled' : ''}
+                class="flex items-center space-x-1 px-3 py-1 themed-radius text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                <span>Add Task</span>
+              </button>
+            </div>
+
+            <!-- Notes Collapsible Section -->
+            <div id="notes-sec-${bar.id}" class="${bar.isNotesOpen ? 'block' : 'hidden'} mt-3 pt-3 border-t border-dashed border-slate-200 dark:border-slate-800">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Scratchpad / Notes</span>
+                <span class="text-[10px] text-slate-400">Autosaved</span>
+              </div>
+              <textarea 
+                onchange="updateBarNotes('${bar.id}', this.value)" 
+                placeholder="Write reminders, links, or ideas for this bar..." 
+                rows="3" 
+                class="w-full text-xs p-3 themed-radius bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none font-sans"
+              >${escapeHtml(bar.notes || '')}</textarea>
+            </div>
+
+            <!-- Sub-tasks Drawer Section -->
+            <div id="tasks-sec-${bar.id}" class="${bar.isTasksOpen ? 'block' : 'hidden'} mt-3 space-y-2">
+              <div class="space-y-1.5" id="task-list-${bar.id}">
+                ${bar.tasks.map((task) => `
+                  <div id="row-${task.id}" class="group flex items-center justify-between p-2.5 themed-radius bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80 hover:border-slate-200 dark:hover:border-slate-700 transition-all">
+                    <div class="flex items-center space-x-3 flex-1 min-w-0 mr-2">
+                      <!-- Custom Styled Checkbox using Dynamic Accent Color -->
+                      <input 
+                        type="checkbox" 
+                        id="chk-${task.id}"
+                        ${task.completed ? 'checked' : ''} 
+                        onchange="toggleTaskStatus('${bar.id}', '${task.id}', this.checked)"
+                        class="progbar-checkbox"
+                      />
+                      <!-- Editable Subtask Title -->
+                      <input 
+                        type="text" 
+                        value="${escapeHtml(task.title)}" 
+                        onchange="updateTaskTitle('${bar.id}', '${task.id}', this.value)"
+                        class="text-xs bg-transparent border-0 focus:ring-1 focus:ring-indigo-500 rounded px-1.5 py-0.5 w-full font-medium text-slate-700 dark:text-slate-300 ${task.completed ? 'line-through text-slate-400 dark:text-slate-500' : ''}"
+                        placeholder="Subtask name..."
+                      />
+                    </div>
+                    <!-- Delete subtask button -->
+                    <button 
+                      onclick="deleteTask('${bar.id}', '${task.id}')" 
+                      title="Remove Task" 
+                      class="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-slate-400 hover:text-red-500 rounded"
+                    >
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                  </div>
+                `).join('')}
+              </div>
+
+              ${bar.tasks.length === 0 ? `
+                <div class="text-center py-4 bg-slate-50 dark:bg-slate-800/20 themed-radius border border-dashed border-slate-200 dark:border-slate-800">
+                  <p class="text-xs text-slate-500">No sub-tasks. Add one to track fractional percentages.</p>
+                  <button onclick="addNewTask('${bar.id}')" class="mt-1.5 text-xs font-bold accent-text hover:underline">+ Add 1st Sub-task</button>
+                </div>
+              ` : ''}
+            </div>
+
+          </div>
+        `;
+        container.appendChild(barCard);
+      });
+
+      updateSummaryMetrics();
+    }
+
+    // Task Actions & Interactive Animations
+    function addNewBar() {
+      if (appData.bars.length >= MAX_BARS) {
+        triggerToast("Maximum limit of 15 progress bars reached");
+        return;
+      }
+
+      const newBar = {
+        id: 'bar_' + Date.now(),
+        title: `Goal #${appData.bars.length + 1}`,
+        tag: { name: 'Focus', color: appData.settings.accentColor },
+        notes: '',
+        isNotesOpen: false,
+        isTasksOpen: true,
+        timerSeconds: 0,
+        timerRunning: false,
+        manualProgress: 0,
+        tasks: [
+          { id: 'task_' + Date.now(), title: 'Initial Sub-task', completed: false }
+        ]
+      };
+
+      appData.bars.unshift(newBar);
+      saveState(true);
+      renderBars();
+    }
+
+    function deleteBar(barId) {
+      appData.bars = appData.bars.filter(b => b.id !== barId);
+      saveState(true);
+      renderBars();
+    }
+
+    function updateBarTitle(barId, newTitle) {
+      const bar = appData.bars.find(b => b.id === barId);
+      if (bar) {
+        bar.title = newTitle.trim() || 'Untitled Goal';
+        saveState();
+      }
+    }
+
+    function toggleTasksAccordion(barId) {
+      const bar = appData.bars.find(b => b.id === barId);
+      if (bar) {
+        bar.isTasksOpen = !bar.isTasksOpen;
+        saveState();
+        renderBars();
+      }
+    }
+
+    function toggleNotes(barId) {
+      const bar = appData.bars.find(b => b.id === barId);
+      if (bar) {
+        bar.isNotesOpen = !bar.isNotesOpen;
+        saveState();
+        renderBars();
+      }
+    }
+
+    function updateBarNotes(barId, val) {
+      const bar = appData.bars.find(b => b.id === barId);
+      if (bar) {
+        bar.notes = val;
+        saveState(true);
+      }
+    }
+
+    function addNewTask(barId) {
+      const bar = appData.bars.find(b => b.id === barId);
+      if (!bar) return;
+      if (bar.tasks.length >= MAX_TASKS_PER_BAR) {
+        triggerToast("Limit of 10 tasks per bar reached");
+        return;
+      }
+
+      bar.tasks.push({
+        id: 'task_' + Date.now(),
+        title: `Sub-task ${bar.tasks.length + 1}`,
+        completed: false
+      });
+      bar.isTasksOpen = true;
+      saveState(true);
+      renderBars();
+    }
+
+    function updateTaskTitle(barId, taskId, val) {
+      const bar = appData.bars.find(b => b.id === barId);
+      if (!bar) return;
+      const t = bar.tasks.find(x => x.id === taskId);
+      if (t) {
+        t.title = val.trim() || 'Untitled Sub-task';
+        saveState();
+      }
+    }
+
+    // Toggle Task Status with enhanced micro-animations & sounds
+    function toggleTaskStatus(barId, taskId, isChecked) {
+      const bar = appData.bars.find(b => b.id === barId);
+      if (!bar) return;
+      const t = bar.tasks.find(x => x.id === taskId);
+      if (!t) return;
+
+      t.completed = isChecked;
+      const newPercent = getBarProgress(bar);
+
+      // Micro-animation on the checkbox & row
+      const chk = document.getElementById(`chk-${taskId}`);
+      const row = document.getElementById(`row-${taskId}`);
+
+      if (isChecked) {
+        if (chk) {
+          chk.classList.add('checkbox-pop');
+          setTimeout(() => chk.classList.remove('checkbox-pop'), 400);
+        }
+        if (row) {
+          row.classList.add('task-flash-anim');
+          setTimeout(() => row.classList.remove('task-flash-anim'), 600);
+        }
+
+        if (newPercent === 100) {
+          // Full completion: Fanfare sound + Multi-stage fireworks confetti + Card glow burst
+          playSound('complete');
+          triggerFullCelebration(bar.id);
+        } else {
+          // Subtask tick pop sound
+          playSound('tick');
+        }
+      } else {
+        playSound('untick');
+      }
+
+      saveState();
+      renderBars();
+    }
+
+    // Full celebration animation triggers
+    function triggerFullCelebration(barId) {
+      // Glow pulse on card
+      const card = document.getElementById(`card-${barId}`);
+      if (card) {
+        card.classList.add('card-complete-burst');
+        setTimeout(() => card.classList.remove('card-complete-burst'), 2500);
+      }
+
+      // Confetti burst
+      if (appData.settings.confettiEnabled && window.confetti) {
+        // Multi-angle vibrant confetti cannon
+        window.confetti({
+          particleCount: 60,
+          spread: 60,
+          origin: { y: 0.65 },
+          colors: [appData.settings.accentColor, '#10b981', '#f59e0b', '#ec4899', '#3b82f6']
+        });
+        setTimeout(() => {
+          window.confetti({
+            particleCount: 40,
+            angle: 60,
+            spread: 55,
+            origin: { x: 0 }
+          });
+          window.confetti({
+            particleCount: 40,
+            angle: 120,
+            spread: 55,
+            origin: { x: 1 }
+          });
+        }, 200);
+      }
+    }
+
+    function deleteTask(barId, taskId) {
+      const bar = appData.bars.find(b => b.id === barId);
+      if (!bar) return;
+      bar.tasks = bar.tasks.filter(x => x.id !== taskId);
+      saveState();
+      renderBars();
+    }
+
+    // Stopwatch Controls
+    function toggleTimer(barId) {
+      const bar = appData.bars.find(b => b.id === barId);
+      if (!bar) return;
+      bar.timerRunning = !bar.timerRunning;
+      saveState();
+      renderBars();
+    }
+
+    function resetTimer(barId) {
+      const bar = appData.bars.find(b => b.id === barId);
+      if (!bar) return;
+      bar.timerRunning = false;
+      bar.timerSeconds = 0;
+      saveState();
+      renderBars();
+    }
+
+    // Tag assignment
+    function openTagPicker(barId) {
+      currentTagBarId = barId;
+      const bar = appData.bars.find(b => b.id === barId);
+      const input = document.getElementById('customTagName');
+      input.value = bar && bar.tag ? bar.tag.name : '';
+      
+      const paletteContainer = document.getElementById('tagPalette');
+      paletteContainer.innerHTML = '';
+      COLOR_PALETTE.forEach((col, idx) => {
+        const circle = document.createElement('button');
+        circle.type = 'button';
+        circle.className = `w-7 h-7 rounded-full border-2 transition-transform ${selectedColorIndex === idx ? 'scale-110 border-slate-900 dark:border-white ring-2 ring-indigo-500' : 'border-transparent'}`;
+        circle.style.backgroundColor = col.bg;
+        circle.onclick = () => {
+          selectedColorIndex = idx;
+          openTagPicker(barId);
+        };
+        paletteContainer.appendChild(circle);
+      });
+
+      document.getElementById('tagPickerModal').classList.remove('hidden');
+      document.getElementById('tagPickerModal').classList.add('flex');
+    }
+
+    function closeTagPicker() {
+      document.getElementById('tagPickerModal').classList.add('hidden');
+      document.getElementById('tagPickerModal').classList.remove('flex');
+      currentTagBarId = null;
+    }
+
+    document.getElementById('cancelTagBtn').addEventListener('click', closeTagPicker);
+    document.getElementById('saveTagBtn').addEventListener('click', () => {
+      if (!currentTagBarId) return;
+      const bar = appData.bars.find(b => b.id === currentTagBarId);
+      const name = document.getElementById('customTagName').value.trim();
+      if (bar) {
+        if (name) {
+          bar.tag = {
+            name: name,
+            color: COLOR_PALETTE[selectedColorIndex].bg
+          };
+        } else {
+          bar.tag = null;
+        }
+        saveState(true);
+        renderBars();
+      }
+      closeTagPicker();
+    });
+
+    // Modal Events
+    const settingsModal = document.getElementById('settingsModal');
+    document.getElementById('openSettingsBtn').addEventListener('click', () => {
+      applyGlobalStyles();
+      settingsModal.classList.remove('hidden');
+      settingsModal.classList.add('flex');
+    });
+    document.getElementById('closeSettingsBtn').addEventListener('click', () => {
+      settingsModal.classList.add('hidden');
+      settingsModal.classList.remove('flex');
+    });
+
+    // Theme Switchers
+    document.getElementById('lightModeBtn').addEventListener('click', () => {
+      appData.settings.darkMode = false;
+      applyGlobalStyles();
+      saveState();
+    });
+    document.getElementById('darkModeBtn').addEventListener('click', () => {
+      appData.settings.darkMode = true;
+      applyGlobalStyles();
+      saveState();
+    });
+
+    // Radius choice selector
+    document.querySelectorAll('#radiusOptions .radius-choice').forEach(btn => {
+      btn.addEventListener('click', () => {
+        appData.settings.radiusMode = btn.dataset.radius;
+        applyGlobalStyles();
+        saveState();
+        renderBars();
+      });
+    });
+
+    // Style picker in settings
+    document.querySelectorAll('#barStyleOptions .style-choice').forEach(btn => {
+      btn.addEventListener('click', () => {
+        appData.settings.barStyle = btn.dataset.style;
+        applyGlobalStyles();
+        saveState();
+        renderBars();
+      });
+    });
+
+    // Bar layout picker
+    document.querySelectorAll('#barLayoutOptions .layout-choice').forEach(btn => {
+      btn.addEventListener('click', () => {
+        appData.settings.barLayout = btn.dataset.layout;
+        applyGlobalStyles();
+        saveState();
+        renderBars();
+      });
+    });
+
+    // Custom Hex Color Pickers
+    document.getElementById('customAccentPicker').addEventListener('input', (e) => {
+      appData.settings.accentColor = e.target.value;
+      document.getElementById('customAccentHex').value = e.target.value;
+      applyGlobalStyles();
+      saveState();
+      renderBars();
+    });
+
+    document.getElementById('customAccentHex').addEventListener('change', (e) => {
+      let val = e.target.value.trim();
+      if (!val.startsWith('#')) val = '#' + val;
+      if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+        appData.settings.accentColor = val;
+        applyGlobalStyles();
+        saveState();
+        renderBars();
+      }
+    });
+
+    // Audio & Confetti Toggles
+    document.getElementById('confettiToggle').addEventListener('change', (e) => {
+      appData.settings.confettiEnabled = e.target.checked;
+      saveState();
+    });
+    document.getElementById('soundToggle').addEventListener('change', (e) => {
+      appData.settings.soundEnabled = e.target.checked;
+      saveState();
+    });
+
+    // Reset Data
+    document.getElementById('resetDataBtn').addEventListener('click', () => {
+      const confirmReset = window.confirm ? confirm('Are you sure you want to reset all progress bars, notes, and timers?') : true;
+      if (confirmReset) {
+        localStorage.removeItem(STORAGE_KEY);
+        loadState();
+        applyGlobalStyles();
+        renderBars();
+        triggerToast('All progress reset');
+        settingsModal.classList.add('hidden');
+        settingsModal.classList.remove('flex');
+      }
+    });
+
+    // Export Data JSON
+    document.getElementById('exportDataBtn').addEventListener('click', () => {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appData, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `progbar-backup-${new Date().toISOString().slice(0, 10)}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      triggerToast('Export downloaded');
+    });
+
+    // Import Data JSON
+    document.getElementById('importJsonInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const parsed = JSON.parse(event.target.result);
+          if (parsed && Array.isArray(parsed.bars)) {
+            appData = parsed;
+            saveState();
+            applyGlobalStyles();
+            renderBars();
+            triggerToast('Data restored successfully!');
+            settingsModal.classList.add('hidden');
+            settingsModal.classList.remove('flex');
+          } else {
+            triggerToast('Invalid backup file format');
+          }
+        } catch (err) {
+          triggerToast('Error reading JSON file');
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    // Tag Filter
+    document.getElementById('tagFilter').addEventListener('change', (e) => {
+      activeFilterTag = e.target.value;
+      renderBars();
+    });
+
+    // New bar button
+    document.getElementById('addBarBtn').addEventListener('click', addNewBar);
+
+    // Escape helper
+    function escapeHtml(text) {
+      if (!text) return '';
+      return text.replace(/[&<>"']/g, function(m) {
+        return {
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#039;'
+        }[m];
+      });
+    }
+
+    // Startup
+    window.addEventListener('DOMContentLoaded', () => {
+      loadState();
+      applyGlobalStyles();
+      renderBars();
+      startTimerLoop();
+    });
+  </script>
+</body>
+</html>
